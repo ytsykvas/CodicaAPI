@@ -1,4 +1,5 @@
 class Api::ProjectsController < ApplicationController
+	before_action :set_project, only: [:show, :update, :destroy]
 
 	def index
 		projects = current_user.projects.includes(:tasks)
@@ -6,8 +7,7 @@ class Api::ProjectsController < ApplicationController
 	end
 
 	def show
-		project = current_user.projects.find(params[:id])
-		render json: project
+		render json: @project
 	end
 
 	def create
@@ -21,18 +21,15 @@ class Api::ProjectsController < ApplicationController
 	end
 
 	def update
-		project = current_user.projects.find(params[:id])
-
-		if project.update(project_params)
-			render json: project
+		if @project.update(project_params)
+			render json: @project
 		else
-			render json: { errors: project.errors.full_messages }, status: :unprocessable_entity
+			render json: { errors: @project.errors.full_messages }, status: :unprocessable_entity
 		end
 	end
 
 	def destroy
-		project = current_user.projects.find(params[:id])
-		project.destroy
+		@project.destroy
 		head :no_content
 	end
 
@@ -40,5 +37,9 @@ class Api::ProjectsController < ApplicationController
 
 	def project_params
 		params.require(:project).permit(:name, :description)
+	end
+
+	def set_project
+		@project = current_user.projects.find(params[:id])
 	end
 end

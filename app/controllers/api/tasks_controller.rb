@@ -1,5 +1,6 @@
 class Api::TasksController < ApplicationController
 	before_action :set_project
+	before_action :set_task, only: [:show, :update, :destroy]
 
 	def index
 		tasks = @project.tasks
@@ -7,8 +8,7 @@ class Api::TasksController < ApplicationController
 	end
 
 	def show
-		task = @project.tasks.find(params[:id])
-		render json: task
+		render json: @task
 	end
 
 	def create
@@ -22,18 +22,15 @@ class Api::TasksController < ApplicationController
 	end
 
 	def update
-		task = @project.tasks.find(params[:id])
-
-		if task.update(task_params)
-			render json: task
+		if @task.update(task_params)
+			render json: @task
 		else
-			render json: { errors: task.errors.full_messages }, status: :unprocessable_entity
+			render json: { errors: @task.errors.full_messages }, status: :unprocessable_entity
 		end
 	end
 
 	def destroy
-		task = @project.tasks.find(params[:id])
-		task.destroy
+		@task.destroy
 		head :no_content
 	end
 
@@ -46,6 +43,10 @@ class Api::TasksController < ApplicationController
 
 	def set_project
 		@project = current_user.projects.find(params[:project_id])
+	end
+
+	def set_task
+		@task = @project.tasks.find(params[:id])
 	end
 
 	def task_params
