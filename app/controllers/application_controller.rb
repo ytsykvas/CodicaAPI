@@ -1,5 +1,7 @@
-class ApplicationController < ActionController::API
-	include SimpleTokenAuthentication::ActsAsTokenAuthenticationHandler
+# frozen_string_literal: true
 
-	acts_as_token_authentication_handler_for User
+class ApplicationController < ActionController::API
+  include SimpleTokenAuthentication::ActsAsTokenAuthenticationHandler
+
+  acts_as_token_authentication_handler_for User
 end

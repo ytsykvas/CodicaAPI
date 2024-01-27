@@ -1,60 +1,64 @@
-class Api::TasksController < ApplicationController
-	before_action :set_project
-	before_action :set_task, only: [:show, :update, :destroy]
-	after_action :clear_cache, only: [:update, :destroy]
+# frozen_string_literal: true
 
-	def index
-		tasks = @project.tasks
-		render json: tasks
-	end
+module Api
+  class TasksController < ApplicationController
+    before_action :set_project
+    before_action :set_task, only: %i[show update destroy]
+    after_action :clear_cache, only: %i[update destroy]
 
-	def show
-		render json: @task
-	end
+    def index
+      tasks = @project.tasks
+      render json: tasks
+    end
 
-	def create
-		task = @project.tasks.build(task_params)
+    def show
+      render json: @task
+    end
 
-		if task.save
-			render json: task, status: :created
-		else
-			render json: { errors: task.errors.full_messages }, status: :unprocessable_entity
-		end
-	end
+    def create
+      task = @project.tasks.build(task_params)
 
-	def update
-		if @task.update(task_params)
-			render json: @task
-		else
-			render json: { errors: @task.errors.full_messages }, status: :unprocessable_entity
-		end
-	end
+      if task.save
+        render json: task, status: :created
+      else
+        render json: { errors: task.errors.full_messages }, status: :unprocessable_entity
+      end
+    end
 
-	def destroy
-		@task.destroy
-		head :no_content
-	end
+    def update
+      if @task.update(task_params)
+        render json: @task
+      else
+        render json: { errors: @task.errors.full_messages }, status: :unprocessable_entity
+      end
+    end
 
-	def tasks_by_status
-		tasks = @project.tasks.where(status: params[:status])
-		render json: tasks
-	end
+    def destroy
+      @task.destroy
+      head :no_content
+    end
 
-	private
+    def tasks_by_status
+      tasks = @project.tasks.where(status: params[:status])
+      render json: tasks
+    end
 
-	def set_project
-		@project = QueryCaching.new(current_user, params[:project_id]).perform_project
-	end
+    private
 
-	def set_task
-		@task = QueryCaching.new(current_user, params[:id], set_project).perform_task
-	end
+    def set_project
+      @project = QueryCaching.new(current_user, params[:project_id]).perform_project
+    end
 
-	def task_params
-		params.require(:task).permit(:name, :description, :status)
-	end
+    def set_task
+      @task = QueryCaching.new(current_user, params[:id], set_project).perform_task
+    end
 
-	def clear_cache
-		Rails.cache.delete("task_#{@task.id}")
-	end
+    def task_params
+      params.require(:task).permit(:name, :description, :status)
+    end
+
+    def clear_cache
+      Rails.cache.delete("task_#{@task.id}")
+    end
+  end
 end
