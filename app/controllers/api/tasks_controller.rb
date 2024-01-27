@@ -1,6 +1,7 @@
 class Api::TasksController < ApplicationController
 	before_action :set_project
 	before_action :set_task, only: [:show, :update, :destroy]
+	after_action :clear_cache, only: [:update, :destroy]
 
 	def index
 		tasks = @project.tasks
@@ -42,14 +43,18 @@ class Api::TasksController < ApplicationController
 	private
 
 	def set_project
-		@project = current_user.projects.find(params[:project_id])
+		@project = QueryCaching.new(current_user, params[:project_id]).perform_project
 	end
 
 	def set_task
-		@task = @project.tasks.find(params[:id])
+		@task = QueryCaching.new(current_user, params[:id], set_project).perform_task
 	end
 
 	def task_params
 		params.require(:task).permit(:name, :description, :status)
+	end
+
+	def clear_cache
+		Rails.cache.delete("task_#{@task.id}")
 	end
 end

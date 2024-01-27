@@ -114,14 +114,22 @@ RSpec.describe Api::ProjectsController, type: :controller do
 
 	describe 'DELETE #destroy' do
 		before { sign_in(user) }
+		let!(:project) { create(:project, user: user) }
 
 		it 'destroys the requested project' do
-			project = create(:project, user: user)
 
 			delete :destroy, params: { id: project.id }
 
 			expect(response).to have_http_status(:no_content)
 			expect(Project.count).to eq(0)
+		end
+
+		it 'clear cache with with deleted project' do
+			QueryCaching.new(user, project.id).perform_project
+
+			delete :destroy, params: { id: project.id }
+
+			expect(Rails.cache.read("project_#{project.id}")).to be_nil
 		end
 	end
 end

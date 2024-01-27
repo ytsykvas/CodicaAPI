@@ -1,5 +1,6 @@
 class Api::ProjectsController < ApplicationController
 	before_action :set_project, only: [:show, :update, :destroy]
+	after_action :clear_cache, only: [:update, :destroy]
 
 	def index
 		projects = current_user.projects.includes(:tasks)
@@ -40,6 +41,10 @@ class Api::ProjectsController < ApplicationController
 	end
 
 	def set_project
-		@project = current_user.projects.find(params[:id])
+		@project = QueryCaching.new(current_user, params[:id]).perform_project
+	end
+
+	def clear_cache
+		Rails.cache.delete("project_#{@project.id}")
 	end
 end

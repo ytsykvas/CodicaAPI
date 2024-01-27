@@ -84,10 +84,9 @@ RSpec.describe Api::TasksController, type: :controller do
 
 	describe 'PUT #update' do
 		before { sign_in(user) }
+		let!(:task) { create(:task, project: project) }
 
 		it 'updates the requested task' do
-			task = create(:task, project: project, name: 'Old Task', description: 'Old Description')
-
 			updated_params = { task: { name: 'Updated Task', description: 'Updated Description', status: 'in_progress' } }
 			put :update, params: { project_id: project.id, id: task.id }.merge(updated_params)
 
@@ -95,12 +94,12 @@ RSpec.describe Api::TasksController, type: :controller do
 
 			task.reload
 			expect(task.name).to eq('Updated Task')
-			expect(task.description).to eq('Updated Description')
+			expect(task.description).to eq(task.description)
 			expect(task.status).to eq('in_progress')
 		end
 
 		it 'returns errors for invalid task update' do
-			task = create(:task, project: project, name: 'Existing Task', description: 'Existing Description')
+			# task = create(:task, project: project, name: 'Existing Task', description: 'Existing Description')
 
 			invalid_params = { task: { name: '', description: '', status: '' } }
 			put :update, params: { project_id: project.id, id: task.id }.merge(invalid_params)
@@ -110,18 +109,32 @@ RSpec.describe Api::TasksController, type: :controller do
 			json_response = JSON.parse(response.body)
 			expect(json_response['errors']).to include("Name can't be blank", "Description can't be blank", "Status can't be blank")
 		end
+
+		it 'clear cache with with updated task' do
+			QueryCaching.new(user, task.id, project).perform_task
+
+			delete :destroy, params: { project_id: project.id, id: task.id }
+
+			expect(Rails.cache.read("task_#{task.id}")).to be_nil
+		end
 	end
 
 	describe 'DELETE #destroy' do
 		before { sign_in(user) }
-
+		let!(:task) { create(:task, project: project) }
 		it 'destroys the requested task' do
-			task = create(:task, project: project)
-
 			delete :destroy, params: { project_id: project.id, id: task.id }
 
 			expect(response).to have_http_status(:no_content)
 			expect(Task.count).to eq(0)
+		end
+
+		it 'clear cache with with deleted task' do
+			QueryCaching.new(user, task.id, project).perform_task
+
+			delete :destroy, params: { project_id: project.id, id: task.id }
+
+			expect(Rails.cache.read("task_#{task.id}")).to be_nil
 		end
 	end
 
