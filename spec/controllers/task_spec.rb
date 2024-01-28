@@ -3,21 +3,20 @@
 require 'rails_helper'
 
 RSpec.describe Api::TasksController, type: :controller do
+  before { sign_in(user) }
   let(:user) { create(:user) }
   let(:project) { create(:project, user:) }
   let(:task_params) { attributes_for(:task) }
 
   describe 'GET #index' do
-    before { sign_in(user) }
-
     it 'returns a success response' do
       get :index, params: { project_id: project.id }
       expect(response).to have_http_status(:success)
     end
 
     it 'returns all tasks for the project' do
-      task1 = create(:task, project:, name: 'Task 1', description: 'Description 1')
-      task2 = create(:task, project:, name: 'Task 2', description: 'Description 2')
+      task1 = create(:task, project:)
+      task2 = create(:task, project:)
 
       get :index, params: { project_id: project.id }
 
@@ -29,37 +28,32 @@ RSpec.describe Api::TasksController, type: :controller do
   end
 
   describe 'GET #show' do
-    before { sign_in(user) }
+    let(:task) { create(:task, project:) }
 
     it 'returns a success response' do
-      task = create(:task, project:)
       get :show, params: { project_id: project.id, id: task.id }
+
       expect(response).to have_http_status(:success)
     end
 
     it 'renders JSON with the task details' do
-      task = create(:task, project:, name: 'Test Task', description: 'Test Description')
       get :show, params: { project_id: project.id, id: task.id }
 
       json_response = JSON.parse(response.body)
-      expect(json_response['name']).to eq('Test Task')
-      expect(json_response['description']).to eq('Test Description')
+      expect(json_response['name']).to eq(task.name)
+      expect(json_response['description']).to eq(task.description)
     end
   end
 
   describe 'POST #create' do
-    before { sign_in(user) }
-
     it 'creates a new task' do
       post :create, params: { project_id: project.id, task: task_params }
 
       expect(response).to have_http_status(:created)
       expect(Task.count).to eq(1)
-
-      new_task = Task.first
-      expect(new_task.name).to eq(task_params[:name])
-      expect(new_task.description).to eq(task_params[:description])
-      expect(new_task.project).to eq(project)
+      expect(Task.last.name).to eq(task_params[:name])
+      expect(Task.last.description).to eq(task_params[:description])
+      expect(Task.last.project).to eq(project)
     end
 
     it 'creates a new task with a TODO status by default' do
@@ -85,12 +79,12 @@ RSpec.describe Api::TasksController, type: :controller do
   end
 
   describe 'PUT #update' do
-    before { sign_in(user) }
+    let(:valid_params) { { task: { name: 'Updated Task', description: 'Updated Description', status: 'in_progress' } } }
+    let(:invalid_params) { { task: { name: '', description: '', status: '' } } }
     let!(:task) { create(:task, project:) }
 
     it 'updates the requested task' do
-      updated_params = { task: { name: 'Updated Task', description: 'Updated Description', status: 'in_progress' } }
-      put :update, params: { project_id: project.id, id: task.id }.merge(updated_params)
+      put :update, params: { project_id: project.id, id: task.id }.merge(valid_params)
 
       expect(response).to have_http_status(:success)
 
@@ -101,9 +95,6 @@ RSpec.describe Api::TasksController, type: :controller do
     end
 
     it 'returns errors for invalid task update' do
-      # task = create(:task, project: project, name: 'Existing Task', description: 'Existing Description')
-
-      invalid_params = { task: { name: '', description: '', status: '' } }
       put :update, params: { project_id: project.id, id: task.id }.merge(invalid_params)
 
       expect(response).to have_http_status(:unprocessable_entity)
@@ -123,8 +114,8 @@ RSpec.describe Api::TasksController, type: :controller do
   end
 
   describe 'DELETE #destroy' do
-    before { sign_in(user) }
     let!(:task) { create(:task, project:) }
+
     it 'destroys the requested task' do
       delete :destroy, params: { project_id: project.id, id: task.id }
 
@@ -142,8 +133,6 @@ RSpec.describe Api::TasksController, type: :controller do
   end
 
   describe 'GET #tasks_by_status' do
-    before { sign_in(user) }
-
     it 'returns tasks with the required status' do
       task1 = create(:task, project:, status: 0)
       task2 = create(:task, project:, status: 1)

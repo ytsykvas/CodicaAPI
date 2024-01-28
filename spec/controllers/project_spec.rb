@@ -3,31 +3,31 @@
 require 'rails_helper'
 
 RSpec.describe Api::ProjectsController, type: :controller do
+  before { sign_in(user) }
   let(:user) { create(:user) }
+  let!(:project) { create(:project, user:) }
 
   describe 'GET #index' do
-    before { sign_in(user) }
-
     it 'returns a success response' do
       get :index
+
       expect(response).to have_http_status(:success)
+      expect(JSON.parse(response.body).length).to eq(1)
     end
 
     it 'returns all projects' do
-      project1 = create(:project, user:, name: 'Project 1', description: 'Description 1')
-      project2 = create(:project, user:, name: 'Project 2', description: 'Description 2')
+      project2 = create(:project, user:)
 
       get :index
 
       json_response = JSON.parse(response.body)
       expect(json_response.length).to eq(2)
-      expect(json_response.first['name']).to eq(project1.name)
+      expect(json_response.first['name']).to eq(project.name)
       expect(json_response.last['name']).to eq(project2.name)
     end
 
     it 'returns all projects with included tasks' do
-      project = create(:project, user:, name: 'Project 1', description: 'Description 1')
-      task = create(:task, name: 'Task 1', project:)
+      task = create(:task, project:)
 
       get :index
 
@@ -40,42 +40,35 @@ RSpec.describe Api::ProjectsController, type: :controller do
   end
 
   describe 'GET #show' do
-    before { sign_in(user) }
-
     it 'returns a success response' do
-      project = create(:project, user:)
       get :show, params: { id: project.id }
       expect(response).to have_http_status(:success)
     end
 
     it 'renders JSON with the project details' do
-      project = create(:project, user:, name: 'Test Project', description: 'Test Description')
       get :show, params: { id: project.id }
 
       json_response = JSON.parse(response.body)
-      expect(json_response['name']).to eq('Test Project')
-      expect(json_response['description']).to eq('Test Description')
+      expect(json_response['name']).to eq(project.name)
+      expect(json_response['description']).to eq(project.description)
     end
   end
 
   describe 'POST #create' do
-    before { sign_in(user) }
+    let(:valid_params) { { project: { name: 'New Project', description: 'New Description' } } }
+    let(:invalid_params) { { project: { name: '', description: '' } } }
 
     it 'creates a new project' do
-      project_params = { project: { name: 'New Project', description: 'New Description' } }
-      post :create, params: project_params
+      post :create, params: valid_params
 
       expect(response).to have_http_status(:created)
-      expect(Project.count).to eq(1)
-
-      new_project = Project.first
-      expect(new_project.name).to eq('New Project')
-      expect(new_project.description).to eq('New Description')
-      expect(new_project.user).to eq(user)
+      expect(Project.count).to eq(2)
+      expect(Project.last.name).to eq(valid_params[:project][:name])
+      expect(Project.last.description).to eq(valid_params[:project][:description])
+      expect(Project.last.user).to eq(user)
     end
 
     it 'returns errors for invalid project creation' do
-      invalid_params = { project: { name: '', description: '' } }
       post :create, params: invalid_params
 
       expect(response).to have_http_status(:unprocessable_entity)
@@ -86,25 +79,22 @@ RSpec.describe Api::ProjectsController, type: :controller do
   end
 
   describe 'PUT #update' do
-    before { sign_in(user) }
+    let(:valid_params) { { project: { name: 'New Project', description: 'New Description' } } }
+    let(:invalid_params) { { project: { name: '', description: '' } } }
+    let(:user) { create(:user) }
+    let!(:project) { create(:project, user:) }
 
     it 'updates the requested project' do
-      project = create(:project, user:, name: 'Old Project', description: 'Old Description')
-
-      updated_params = { project: { name: 'Updated Project', description: 'Updated Description' } }
-      put :update, params: { id: project.id }.merge(updated_params)
+      put :update, params: { id: project.id }.merge(valid_params)
 
       expect(response).to have_http_status(:success)
 
       project.reload
-      expect(project.name).to eq('Updated Project')
-      expect(project.description).to eq('Updated Description')
+      expect(project.name).to eq('New Project')
+      expect(project.description).to eq('New Description')
     end
 
     it 'returns errors for invalid project update' do
-      project = create(:project, user:, name: 'Existing Project', description: 'Existing Description')
-
-      invalid_params = { project: { name: '', description: '' } }
       put :update, params: { id: project.id }.merge(invalid_params)
 
       expect(response).to have_http_status(:unprocessable_entity)
@@ -115,9 +105,6 @@ RSpec.describe Api::ProjectsController, type: :controller do
   end
 
   describe 'DELETE #destroy' do
-    before { sign_in(user) }
-    let!(:project) { create(:project, user:) }
-
     it 'destroys the requested project' do
       delete :destroy, params: { id: project.id }
 

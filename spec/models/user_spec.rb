@@ -46,13 +46,22 @@ RSpec.describe User, type: :model do
   end
 
   describe 'authentication token' do
-    it 'generates a unique authentication token' do
+    it 'generates a authentication token' do
       user = create(:user)
+
       expect(user.authentication_token).to be_present
+    end
+    it 'generates a unique authentication token to each user' do
+      2.times do
+        create(:user)
+      end
+
+      expect(User.first.authentication_token).not_to eq(User.second.authentication_token)
     end
 
     it 'ensures the uniqueness of the authentication token' do
       existing_user = create(:user)
+
       expect do
         new_user = create(:user, authentication_token: existing_user.authentication_token)
         new_user.save
